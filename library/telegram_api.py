@@ -1,7 +1,10 @@
 import requests
 import json
 
-telegram_bot_token 	= ""
+# open the settings
+with open( "settings.json", "r") as data:
+	settings 					= json.load(data)
+	telegram_bot_token 			= settings['telegram_bot_token']
 
 def send_message(message, telegram_chat_id):
 	requests.post("https://api.telegram.org/bot" + str(telegram_bot_token) + "/sendMessage?chat_id="+str(telegram_chat_id)+"&text="+message).json()

@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 import re
+import json
 
+# open the settings
+with open( "settings.json", "r") as data:
+	settings 		= json.load(data)
+	stopwords_path 	= settings['stopwords_path']
+	
 # open the stopwords
-with open( "data/stopwords.txt", "r") as data:
+with open(stopwords_path, "r") as data:
 	stopwords = data.read().split('\n')
 	
 # get the wikidata id of a wikidata url

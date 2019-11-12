@@ -76,6 +76,7 @@ def tagme_get_all_entities(utterance, tagmeToken):
 			results = json.loads(requests.get('https://tagme.d4science.org/tagme/tag?lang=en&gcube-token=' + tagmeToken + '&text=' + utterance).content)
 			request_successfull = True
 		except:
+			print("Error: Did you put your tagMe_token in the settings file?")
 			print(utterance)
 			time.sleep(5)
 	entities = []
@@ -131,7 +132,7 @@ def priors_of_entity(entity, max_entity_priors=10292):
 ###		Fagins algorithm
 #####################################################
 
-def fagins_algorithm(queue1, queue2, queue3, hyperparameters, k=3):
+def fagins_algorithm(queue1, queue2, queue3, hyperparameters, number_of_frontier_nodes):
 	h1, h2, h3 = hyperparameters
 	queue1_seen_ids = []
 	queue2_seen_ids = []
@@ -142,7 +143,7 @@ def fagins_algorithm(queue1, queue2, queue3, hyperparameters, k=3):
 		queue1_seen_ids.append(queue1[i]['id'])
 		queue2_seen_ids.append(queue2[i]['id'])
 		queue3_seen_ids.append(queue3[i]['id'])
-		if k_items_shared(queue1_seen_ids, queue2_seen_ids, queue3_seen_ids, k=k):
+		if k_items_shared(queue1_seen_ids, queue2_seen_ids, queue3_seen_ids, number_of_frontier_nodes):
 			break
 	candidates = []
 	seen_ids = list(set(queue1_seen_ids + queue2_seen_ids + queue3_seen_ids))
@@ -155,20 +156,20 @@ def fagins_algorithm(queue1, queue2, queue3, hyperparameters, k=3):
 		candidates.append({'statement': candidate['statement'], 'candidate': candidate['candidate'], 'type': candidate['type'], 'score': score})
 
 	top_candidates = sorted(candidates, key = lambda j: j['score'], reverse=True)
-	top_candidates = top_candidates[:k]
+	top_candidates = top_candidates[:number_of_frontier_nodes]
 	return top_candidates
 
 # random access of an id in a queue
 def random_access(queue, item_id):
 	return next((x for x in queue if x['id'] == item_id), None)
 
-# returns true if k items are shared among all queues
-def k_items_shared(queue1_seen_ids, queue2_seen_ids, queue3_seen_ids, k=3):
+# returns true if number_of_frontier_nodes items are shared among all queues
+def k_items_shared(queue1_seen_ids, queue2_seen_ids, queue3_seen_ids, number_of_frontier_nodes):
 	shared_count = 0
 	for item_id in queue1_seen_ids:
 		if item_id in queue2_seen_ids and item_id in queue3_seen_ids:
 			shared_count += 1
-	if shared_count >= k:
+	if shared_count >= number_of_frontier_nodes:
 		return True
 	else:
 		return False
@@ -177,7 +178,7 @@ def k_items_shared(queue1_seen_ids, queue2_seen_ids, queue3_seen_ids, k=3):
 ###		Determine frontiers
 #####################################################
 
-# for the given question word, determine the top k matching candidates
+# for the given question word, determine the top number_of_frontier_nodes matching candidates
 def determine_attributes(candidates, context, turn):
 	for candidate in candidates:
 		# create a temporal context and include the candidates' statement there
@@ -231,7 +232,7 @@ def determine_matching_similarity(question_word, candidate, is_question_entity=F
 		matching_similarity = spacy.similarity_word2vec(question_word, candidate['label'])
 		return matching_similarity
 
-def determine_top_candidates(candidates_with_scores, frontier_hyperparameters, k=3):
+def determine_top_candidates(candidates_with_scores, frontier_hyperparameters, number_of_frontier_nodes):
 	h1, h2, h3 = frontier_hyperparameters
 	matching_similarity_queue = []
 	for counter, candidate in enumerate(candidates_with_scores):
@@ -248,7 +249,7 @@ def determine_top_candidates(candidates_with_scores, frontier_hyperparameters, k
 		kg_priors_queue.append({'id': counter, 'candidate': candidate[candidate['type']], 'score': candidate['score']['priors'], 'statement': candidate['statement'] })
 	kg_priors_queue = sorted(kg_priors_queue, key = lambda j: j['score'], reverse=True)
 
-	top_candidates =  fagins_algorithm(matching_similarity_queue, context_distances_queue, kg_priors_queue, frontier_hyperparameters, k=3)
+	top_candidates =  fagins_algorithm(matching_similarity_queue, context_distances_queue, kg_priors_queue, frontier_hyperparameters, number_of_frontier_nodes)
 	return top_candidates
 
 #####################################################
@@ -416,11 +417,6 @@ def answer_conversation(questions, tagmeToken, hyperparameters, number_of_fronti
 #####################################################
 ###		Load data
 #####################################################
-
-# open the identifier predicates
-with open( "data/identifier_predicates.json", "r") as data:
-	identifier_predicates = json.load(data)
-
 # open the settings
 with open( "settings.json", "r") as data:
 	settings 					= json.load(data)
@@ -429,8 +425,14 @@ with open( "settings.json", "r") as data:
 	tagmeToken 					= settings['tagMe_token']
 	domain 						= settings['domain']
 	conversations_path			= settings['conversations_path']
+	save_cache					= settings['save_cache']
+	identifier_predicates_path	= settings['identifier_predicates_path']
 	telegram_chat_id			= settings['telegram_chat_id']
 	telegram_active 			= isinstance(telegram_chat_id, int)
+
+# open the identifier predicates
+with open(identifier_predicates_path, "r") as data:
+	identifier_predicates = json.load(data)
 
 if __name__ == '__main__':
 	# open the conversations
@@ -461,8 +463,9 @@ if __name__ == '__main__':
 	print_results( "H@5: 		" + str((question_counter, (total_hit_at_5_score/float(question_counter)), total_hit_at_5_score)))
 	print_results("\n")
 
-	wd.save_cached_data()
-	spacy.save_cached_data()
+	if save_cache:
+		wd.save_cached_data()
+		spacy.save_cached_data()
 	
 	if telegram_active:
 		telegram.send_message("MRR_score: 	" + str((question_counter, (total_mrr_score/float(question_counter)), total_mrr_score)), telegram_chat_id)

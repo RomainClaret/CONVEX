@@ -5,26 +5,32 @@ from hdt import HDTDocument
 import json
 import time
 import requests
+import os
 
-# identifier_predicates
-with open( "data/identifier_predicates.json", "r") as data:
-	identifier_predicates = json.load(data)
-# label_dict
-with open( "data/label_dict.json", "r") as data:
-	label_dict = json.load(data)
-# predicate_frequencies_dict
-with open( "data/predicate_frequencies_dict.json", "r") as data:
-	predicate_frequencies_dict = json.load(data)
-# entity_frequencies_dict
-with open( "data/entity_frequencies_dict.json", "r") as data:
-	entity_frequencies_dict = json.load(data)
-# statements_dict
-with open( "data/statements_dict.json", "r") as data:
-	statements_dict = json.load(data)
 # open the settings
 with open( "settings.json", "r") as data:
-	settings 		 	= json.load(data)
-	wikidata_dump_path 	= settings['wikidata_dump_path']
+	settings 					= json.load(data)
+	cache_path 					= settings['cache_path']
+	identifier_predicates_path 	= settings['identifier_predicates_path']
+	wikidata_dump_path 			= settings['wikidata_dump_path']
+	top_k_limit					= settings['wikidata_top_k_limit']
+
+# identifier_predicates
+with open(identifier_predicates_path, "r") as data:
+	identifier_predicates = json.load(data)
+# label_dict
+with open(os.path.join(cache_path,'label_dict.json'), "r") as data:
+	label_dict = json.load(data)
+# predicate_frequencies_dict
+with open(os.path.join(cache_path,'predicate_frequencies_dict.json'), "r") as data:
+	predicate_frequencies_dict = json.load(data)
+# entity_frequencies_dict
+with open(os.path.join(cache_path,'entity_frequencies_dict.json'), "r") as data:
+	entity_frequencies_dict = json.load(data)
+# statements_dict
+with open(os.path.join(cache_path,'statements_dict.json'), "r") as data:
+	statements_dict = json.load(data)
+
 # Load an HDT file. Missing indexes are generated automatically, add False as the second argument to disable them
 document = HDTDocument(wikidata_dump_path)
 
@@ -38,16 +44,16 @@ entity_pattern 		= re.compile('^Q[0-9]*$')
 
 def save_cached_data():
 	# save the label_dict
-	with open( 'data/label_dict.json', 'wb') as outfile:
+	with open(os.path.join(cache_path,'label_dict.json'), 'wb') as outfile:
 		outfile.write(json.dumps(label_dict, separators=(',',':')).encode('utf8'))
 	# save the predicate_frequencies_dict
-	with open( 'data/predicate_frequencies_dict.json', 'wb') as outfile:
+	with open(os.path.join(cache_path,'predicate_frequencies_dict.json'), 'wb') as outfile:
 		outfile.write(json.dumps(predicate_frequencies_dict, separators=(',',':')).encode('utf8'))
 	# save the entity_frequencies_dict
-	with open( 'data/entity_frequencies_dict.json', 'wb') as outfile:
+	with open(os.path.join(cache_path,'entity_frequencies_dict.json'), 'wb') as outfile:
 		outfile.write(json.dumps(entity_frequencies_dict, separators=(',',':')).encode('utf8'))
 	# save the statements_dict
-	with open( 'data/statements_dict.json', 'wb') as outfile:
+	with open(os.path.join(cache_path,'statements_dict.json'), 'wb') as outfile:
 		outfile.write(json.dumps(statements_dict, separators=(',',':')).encode('utf8'))
 
 #####################################################
@@ -196,13 +202,13 @@ def wikidata_id_to_label(wikidata_id):
 			return label
 
 # get top-k hits for the given name for wikidata search
-def name_to_wikidata_ids(name, limit=3):
+def name_to_wikidata_ids(name):
 	name = name.split('(')[0]
 
 	request_successfull = False
 	while not request_successfull:
 		try:
-			entity_ids = requests.get('https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&limit=' + str(limit) + '&search='+name).json()
+			entity_ids = requests.get('https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&limit=' + str(top_k_limit) + '&search='+name).json()
 			request_successfull = True
 		except:
 			time.sleep(5)
