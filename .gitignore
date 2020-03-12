@@ -4,4 +4,4 @@ library/*.pyc
 nohup.out
 settings.json
 results.txt
-results_temp.txt
+results_temp.txtlibrary/.ipynb_checkpoints/

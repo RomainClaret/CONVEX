@@ -1,4 +1,5 @@
 import networkx as nx
+#import wikidata as wd
 
 # used to distinguish between multiple predicate nodes with same label - next index for predicate
 predicate_nodes = {}
@@ -169,7 +170,13 @@ def get_all_answer_candidates_with_qa(graph):
 	return entity_nodes
 
 def get_distance(graph, answer_candidate, entity_node):
-	return float(nx.shortest_path_length(graph, source=answer_candidate, target=entity_node) + 1.0)
+    if graph.has_node(answer_candidate) and graph.has_node(entity_node):
+        try:
+            return float(nx.shortest_path_length(graph, source=answer_candidate, target=entity_node) + 1.0)
+        except:
+            return float(99.0)
+    else:
+        return float(99.0)
 
 # graph to file
 def write_graph(graph, file_path):
